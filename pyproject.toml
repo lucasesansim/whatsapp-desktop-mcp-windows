@@ -1,0 +1,72 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "whatsapp-desktop-mcp-windows"
+version = "0.1.0"
+description = "MCP stdio server for the Windows WhatsApp Desktop app (WinUI 3 + WebView2) — read history and send messages from Antigravity / Claude Desktop."
+readme = "README_WINDOWS.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [
+    { name = "WhatsApp MCP Windows contributors" },
+]
+keywords = ["mcp", "model-context-protocol", "whatsapp", "windows", "webview2", "antigravity"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Communications :: Chat",
+]
+dependencies = [
+    "mcp[cli]==1.27.1",
+    "pydantic>=2.7,<3",
+    "websockets>=13.0",
+    "aiohttp>=3.9",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.6",
+    "mypy>=1.10",
+    "pytest>=8.2",
+    "pytest-asyncio>=0.23",
+]
+
+[project.scripts]
+whatsapp-desktop-mcp = "whatsapp_desktop_mcp.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/whatsapp_desktop_mcp"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "F",
+    "I",
+    "B",
+    "UP",
+    "TID",
+    "T201",  # NO print() — stdout purity for JSON-RPC
+]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["T201"]
+"src/whatsapp_desktop_mcp/dev/*.py" = ["T201"]
+
+[tool.pytest.ini_options]
+minversion = "8.2"
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = ["-ra", "--strict-markers"]
+markers = [
+    "live: requires a live Windows environment with WhatsApp Desktop installed and running (RUN_LIVE=1)",
+]
