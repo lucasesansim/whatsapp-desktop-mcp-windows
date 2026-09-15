@@ -1,0 +1,343 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR" class="dark scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp Desktop MCP — Windows Edition</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#ecfdf5',
+                            100: '#d1fae5',
+                            500: '#10b981',
+                            600: '#059669',
+                            700: '#047857',
+                            800: '#065f46',
+                            900: '#064e3b',
+                            accent: '#25D366'
+                        },
+                        dark: {
+                            900: '#0B0F17',
+                            850: '#111827',
+                            800: '#1F2937',
+                            700: '#374151'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                        mono: ['"JetBrains Mono"', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .glass-card {
+            background: rgba(17, 24, 39, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glow-emerald {
+            box-shadow: 0 0 50px -10px rgba(16, 185, 129, 0.25);
+        }
+    </style>
+</head>
+<body class="bg-dark-900 text-slate-200 font-sans antialiased selection:bg-brand-500 selection:text-white">
+
+    <!-- Header Navigation -->
+    <nav class="fixed top-0 w-full z-50 glass-card border-b border-slate-800/80">
+        <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-accent to-emerald-700 flex items-center justify-center text-white shadow-lg shadow-emerald-900/40">
+                    <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2m.01 1.67c4.54 0 8.24 3.7 8.24 8.24 0 2.2-.86 4.28-2.42 5.83a8.18 8.18 0 0 1-5.82 2.41c-1.46 0-2.89-.39-4.14-1.12l-.3-.18-3.12.82.83-3.04-.2-.31a8.196 8.196 0 0 1-1.25-4.41c0-4.54 3.7-8.24 8.26-8.24m-3.56 3.99c-.19 0-.5.07-.76.35-.26.28-1 1-1 2.43 0 1.43 1.03 2.81 1.18 3 .15.19 2.03 3.19 4.97 4.42 2.44 1.02 2.94.82 3.47.77.53-.05 1.7-.7 1.94-1.37.24-.68.24-1.26.17-1.38-.07-.11-.27-.18-.57-.33-.3-.15-1.7-.84-1.97-.94-.26-.1-.45-.15-.64.15-.19.3-.74.94-.9 1.13-.17.19-.34.21-.64.06-.3-.15-1.26-.46-2.4-1.48-.89-.79-1.49-1.77-1.66-2.07-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.49.1-.19.05-.36-.02-.51-.08-.15-.65-1.57-.89-2.15-.24-.58-.48-.5-.65-.51z"/></svg>
+                </div>
+                <div>
+                    <span class="font-bold text-lg text-white tracking-tight">WhatsApp Desktop MCP</span>
+                    <span class="ml-2 text-xs uppercase px-2 py-0.5 rounded-full font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Windows</span>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <a href="#fluxo-anexos" class="text-sm text-slate-300 hover:text-white transition">Regra do Anexo</a>
+                <a href="#ferramentas" class="text-sm text-slate-300 hover:text-white transition">Ferramentas</a>
+                <a href="#instalacao" class="text-sm text-slate-300 hover:text-white transition">Instalação</a>
+                <a href="https://github.com/Cristinacarolsouza/whatsapp-desktop-mcp-windows" target="_blank" class="px-4 py-2 text-xs font-semibold rounded-lg bg-white/10 hover:bg-white/15 text-white flex items-center gap-2 border border-white/10 transition">
+                    <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+                    GitHub Repo
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header class="relative pt-36 pb-20 px-6 overflow-hidden">
+        <div class="absolute inset-0 pointer-events-none -z-10 flex items-center justify-center">
+            <div class="w-[600px] h-[600px] bg-brand-500/10 rounded-full blur-3xl"></div>
+        </div>
+        <div class="max-w-4xl mx-auto text-center">
+            <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass-card border border-emerald-500/30 text-emerald-400 text-xs font-semibold mb-6">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                Automação 100% Nativa para Windows 10 & 11 via Edge WebView2
+            </div>
+            <h1 class="text-4xl sm:text-6xl font-extrabold text-white tracking-tight leading-tight mb-6">
+                Controle o WhatsApp Oficial via <span class="bg-gradient-to-r from-emerald-400 via-brand-accent to-teal-300 bg-clip-text text-transparent">Model Context Protocol</span>
+            </h1>
+            <p class="text-lg text-slate-300 max-w-2xl mx-auto mb-10 leading-relaxed">
+                Integração direta e de alta fidelidade entre <strong>Antigravity</strong>, <strong>Claude Desktop</strong> e o aplicativo oficial do <strong>WhatsApp Desktop para Windows</strong>. Sem emuladores, sem Baileys, sem APIs de terceiros.
+            </p>
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+                <a href="#instalacao" class="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-gradient-to-r from-brand-600 to-emerald-500 hover:from-brand-500 hover:to-emerald-400 text-white font-bold shadow-lg shadow-emerald-900/50 transition">
+                    Começar Agora
+                </a>
+                <a href="#fluxo-anexos" class="w-full sm:w-auto px-8 py-3.5 rounded-xl glass-card hover:bg-slate-800 text-slate-200 font-semibold transition border border-slate-700">
+                    Ver Regra do Anexo
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Architecture Strip -->
+    <section class="py-12 border-y border-slate-800 bg-dark-850/50">
+        <div class="max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div class="glass-card p-6 rounded-2xl">
+                <div class="text-xs uppercase text-emerald-400 font-bold mb-2">Pilar 1</div>
+                <h3 class="text-white font-bold text-lg mb-1">Zero Modificações</h3>
+                <p class="text-slate-400 text-sm">Opera sobre o executável oficial da Microsoft Store sem alterar nenhum arquivo ou binário.</p>
+            </div>
+            <div class="glass-card p-6 rounded-2xl">
+                <div class="text-xs uppercase text-emerald-400 font-bold mb-2">Pilar 2</div>
+                <h3 class="text-white font-bold text-lg mb-1">IndexedDB Sync Cache</h3>
+                <p class="text-slate-400 text-sm">Leituras sub-50ms via transações diretas no banco em memória descompactado pelo WebView2.</p>
+            </div>
+            <div class="glass-card p-6 rounded-2xl">
+                <div class="text-xs uppercase text-emerald-400 font-bold mb-2">Pilar 3</div>
+                <h3 class="text-white font-bold text-lg mb-1">Headless em Background</h3>
+                <p class="text-slate-400 text-sm">Consulta e envia mensagens mesmo com a janela minimizada ou em segundo plano.</p>
+            </div>
+            <div class="glass-card p-6 rounded-2xl">
+                <div class="text-xs uppercase text-emerald-400 font-bold mb-2">Pilar 4</div>
+                <h3 class="text-white font-bold text-lg mb-1">Criptografia Total</h3>
+                <p class="text-slate-400 text-sm">Todas as mensagens saem pelo protocolo Signal oficial ponta a ponta do próprio WhatsApp.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Golden Rule: Attachment First Section -->
+    <section id="fluxo-anexos" class="py-20 px-6">
+        <div class="max-w-5xl mx-auto">
+            <div class="glass-card glow-emerald p-8 sm:p-12 rounded-3xl border border-emerald-500/30">
+                <div class="flex items-center gap-3 text-emerald-400 font-bold text-sm uppercase tracking-wider mb-4">
+                    <span class="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">💎 Hábito de Engenharia Mandatório</span>
+                </div>
+                <h2 class="text-3xl sm:text-4xl font-extrabold text-white mb-6">
+                    A Regra de Ouro: <span class="text-emerald-400">Anexo Primeiro, Texto Depois</span>
+                </h2>
+                <p class="text-slate-300 leading-relaxed mb-8">
+                    Durante o desenvolvimento de fluxos automatizados com IA, identificamos que ao compartilhar arquivos pesados (pranchas executivas em PDF, renders 3D em alta resolução, planilhas ou relatórios técnicos), a ordem dos fatores <strong>muda completamente a estabilidade da entrega</strong>.
+                </p>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="p-6 rounded-2xl bg-dark-900/80 border border-emerald-500/30">
+                        <div class="flex items-center gap-2 text-emerald-400 font-bold text-base mb-3">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                            Fluxo Correto (Anexo Primeiro)
+                        </div>
+                        <ol class="text-sm text-slate-300 space-y-3">
+                            <li><strong class="text-white">1. Executa <code>send_file</code></strong>: O MCP abre a conversa, injeta o documento via input nativo do WebView2 e utiliza o campo <code>caption</code> para a legenda.</li>
+                            <li><strong class="text-white">2. Processamento e Âncora</strong>: O WhatsApp carrega o arquivo e fixa o card como âncora principal na conversa.</li>
+                            <li><strong class="text-white">3. Texto Complementar (Opcional)</strong>: Se houver explicações adicionais, o <code>send_message</code> é disparado em seguida, posicionando o texto logo abaixo do arquivo.</li>
+                        </ol>
+                    </div>
+
+                    <div class="p-6 rounded-2xl bg-dark-900/80 border border-red-500/20">
+                        <div class="flex items-center gap-2 text-red-400 font-bold text-base mb-3">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                            Fluxo Evitado (Texto Primeiro)
+                        </div>
+                        <ul class="text-sm text-slate-400 space-y-3">
+                            <li>• Enviar o texto antes força o cliente a ler uma mensagem solta sem o documento referenciado.</li>
+                            <li>• Pode provocar perda de foco no campo de anexo caso o usuário ou bot interaja enquanto o upload ocorre.</li>
+                            <li>• Gera mensagens picadas e descontextualizadas no histórico do cliente.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Tools Matrix -->
+    <section id="ferramentas" class="py-20 px-6 bg-dark-850/40">
+        <div class="max-w-6xl mx-auto">
+            <div class="text-center max-w-2xl mx-auto mb-16">
+                <h2 class="text-3xl font-extrabold text-white mb-4">Catálogo Completo de Ferramentas</h2>
+                <p class="text-slate-400 text-sm">10 ferramentas prontas para uso por qualquer agente conectado via Model Context Protocol.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Tool 1 -->
+                <div class="glass-card p-6 rounded-2xl">
+                    <div class="flex items-center justify-between mb-3">
+                        <code class="text-emerald-400 font-mono text-sm font-bold">send_file</code>
+                        <span class="text-xs px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400">Escrita</span>
+                    </div>
+                    <p class="text-slate-300 text-sm">Envia relatórios PDF, renders e documentos em resolução 100% original com legenda opcional.</p>
+                </div>
+
+                <!-- Tool 2 -->
+                <div class="glass-card p-6 rounded-2xl">
+                    <div class="flex items-center justify-between mb-3">
+                        <code class="text-emerald-400 font-mono text-sm font-bold">send_message</code>
+                        <span class="text-xs px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400">Escrita</span>
+                    </div>
+                    <p class="text-slate-300 text-sm">Envia mensagens de texto formatadas com validação de destinatário e proteção contra envios acidentais.</p>
+                </div>
+
+                <!-- Tool 3 -->
+                <div class="glass-card p-6 rounded-2xl">
+                    <div class="flex items-center justify-between mb-3">
+                        <code class="text-blue-400 font-mono text-sm font-bold">list_chats</code>
+                        <span class="text-xs px-2 py-0.5 rounded bg-blue-500/10 text-blue-400">Leitura</span>
+                    </div>
+                    <p class="text-slate-300 text-sm">Lista conversas recentes (1:1 e grupos) ordenadas por atividade recente, com mensagens não lidas.</p>
+                </div>
+
+                <!-- Tool 4 -->
+                <div class="glass-card p-6 rounded-2xl">
+                    <div class="flex items-center justify-between mb-3">
+                        <code class="text-blue-400 font-mono text-sm font-bold">read_chat</code>
+                        <span class="text-xs px-2 py-0.5 rounded bg-blue-500/10 text-blue-400">Leitura</span>
+                    </div>
+                    <p class="text-slate-300 text-sm">Lê o histórico de mensagens de uma conversa mais recente primeiro, com paginação por cursor.</p>
+                </div>
+
+                <!-- Tool 5 -->
+                <div class="glass-card p-6 rounded-2xl">
+                    <div class="flex items-center justify-between mb-3">
+                        <code class="text-blue-400 font-mono text-sm font-bold">search_contacts</code>
+                        <span class="text-xs px-2 py-0.5 rounded bg-blue-500/10 text-blue-400">Leitura</span>
+                    </div>
+                    <p class="text-slate-300 text-sm">Busca contatos por fragmentos de nome ou telefone para descobrir o <code>chat_id</code> correspondente.</p>
+                </div>
+
+                <!-- Tool 6 -->
+                <div class="glass-card p-6 rounded-2xl">
+                    <div class="flex items-center justify-between mb-3">
+                        <code class="text-blue-400 font-mono text-sm font-bold">extract_recent</code>
+                        <span class="text-xs px-2 py-0.5 rounded bg-blue-500/10 text-blue-400">Leitura</span>
+                    </div>
+                    <p class="text-slate-300 text-sm">Extrai todas as interações de uma conversa nas últimas N horas com sumário de cobertura temporal.</p>
+                </div>
+
+                <!-- Tool 7 -->
+                <div class="glass-card p-6 rounded-2xl">
+                    <div class="flex items-center justify-between mb-3">
+                        <code class="text-blue-400 font-mono text-sm font-bold">search_messages</code>
+                        <span class="text-xs px-2 py-0.5 rounded bg-blue-500/10 text-blue-400">Leitura</span>
+                    </div>
+                    <p class="text-slate-300 text-sm">Busca de texto em mensagens por substring com filtros opcionais por data e remetente.</p>
+                </div>
+
+                <!-- Tool 8 -->
+                <div class="glass-card p-6 rounded-2xl">
+                    <div class="flex items-center justify-between mb-3">
+                        <code class="text-blue-400 font-mono text-sm font-bold">get_chat_metadata</code>
+                        <span class="text-xs px-2 py-0.5 rounded bg-blue-500/10 text-blue-400">Leitura</span>
+                    </div>
+                    <p class="text-slate-300 text-sm">Recupera título do grupo, descrição, lista de membros e status de administradores.</p>
+                </div>
+
+                <!-- Tool 9 -->
+                <div class="glass-card p-6 rounded-2xl">
+                    <div class="flex items-center justify-between mb-3">
+                        <code class="text-purple-400 font-mono text-sm font-bold">doctor</code>
+                        <span class="text-xs px-2 py-0.5 rounded bg-purple-500/10 text-purple-400">Diagnóstico</span>
+                    </div>
+                    <p class="text-slate-300 text-sm">Testa a conexão CDP na porta 9224, processo do WhatsApp e integridade do banco IndexedDB.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Installation & Setup -->
+    <section id="instalacao" class="py-20 px-6">
+        <div class="max-w-4xl mx-auto">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-extrabold text-white mb-4">Instalação Rápida no Windows</h2>
+                <p class="text-slate-400 text-sm">3 etapas simples para ter o WhatsApp MCP operando no seu sistema.</p>
+            </div>
+
+            <div class="space-y-6">
+                <!-- Step 1 -->
+                <div class="glass-card p-6 rounded-2xl">
+                    <div class="flex items-center gap-3 mb-3">
+                        <span class="w-7 h-7 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm">1</span>
+                        <h3 class="text-white font-bold text-base">Habilitar a Porta de Depuração do WebView2</h3>
+                    </div>
+                    <p class="text-slate-300 text-sm mb-3">Abra o PowerShell e execute o comando abaixo para permitir a automação local segura na porta 9224:</p>
+                    <div class="p-4 rounded-xl bg-dark-900 border border-slate-800 font-mono text-xs text-emerald-300 overflow-x-auto">
+                        [Environment]::SetEnvironmentVariable("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", "--remote-debugging-port=9224", "User")
+                    </div>
+                    <p class="text-xs text-slate-500 mt-2">*Reinicie o WhatsApp Desktop completamente para que a configuração entre em vigor.</p>
+                </div>
+
+                <!-- Step 2 -->
+                <div class="glass-card p-6 rounded-2xl">
+                    <div class="flex items-center gap-3 mb-3">
+                        <span class="w-7 h-7 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm">2</span>
+                        <h3 class="text-white font-bold text-base">Clonar e Sincronizar o Ambiente</h3>
+                    </div>
+                    <div class="p-4 rounded-xl bg-dark-900 border border-slate-800 font-mono text-xs text-slate-300 space-y-1">
+                        <div>git clone https://github.com/Cristinacarolsouza/whatsapp-desktop-mcp-windows.git</div>
+                        <div>cd whatsapp-desktop-mcp-windows</div>
+                        <div class="text-emerald-400">uv sync</div>
+                    </div>
+                </div>
+
+                <!-- Step 3 -->
+                <div class="glass-card p-6 rounded-2xl">
+                    <div class="flex items-center gap-3 mb-3">
+                        <span class="w-7 h-7 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm">3</span>
+                        <h3 class="text-white font-bold text-base">Configurar no Claude Desktop / Antigravity</h3>
+                    </div>
+                    <p class="text-slate-300 text-sm mb-3">Adicione ao seu <code>mcp_config.json</code>:</p>
+                    <div class="p-4 rounded-xl bg-dark-900 border border-slate-800 font-mono text-xs text-slate-300 overflow-x-auto">
+<pre>{
+  "mcpServers": {
+    "whatsapp": {
+      "command": "cmd.exe",
+      "args": [
+        "/c", "uv", "run",
+        "--directory", "C:\\caminho\\para\\whatsapp-desktop-mcp-windows",
+        "whatsapp-desktop-mcp",
+        "--no-read-only"
+      ]
+    }
+  }
+}</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="py-12 border-t border-slate-800 text-center text-slate-500 text-sm">
+        <div class="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div>
+                WhatsApp Desktop MCP (Windows) — Licença MIT. Criado por <strong class="text-slate-300">Cristina Carol Souza</strong>.
+            </div>
+            <div class="flex items-center gap-4">
+                <a href="https://github.com/Cristinacarolsouza/whatsapp-desktop-mcp-windows" target="_blank" class="text-slate-400 hover:text-white transition">Repositório GitHub</a>
+            </div>
+        </div>
+    </footer>
+
+</body>
+</html>

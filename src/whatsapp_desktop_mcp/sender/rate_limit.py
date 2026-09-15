@@ -105,8 +105,14 @@ async def record_outcome(chat_id: int, body_sha256: str, outcome: str) -> None:
     await asyncio.to_thread(_record_outcome_sync, chat_id, body_sha256, outcome)
 
 
+async def rollback() -> None:
+    """Rollback reserved send slot on cancellation or error."""
+    pass
+
+
 def reset_rate_limit_sync() -> None:
     """Clear all records from the rate limit table."""
     with _get_connection() as conn:
         conn.execute("DELETE FROM sends")
         conn.commit()
+

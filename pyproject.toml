@@ -6,11 +6,11 @@ build-backend = "hatchling.build"
 name = "whatsapp-desktop-mcp-windows"
 version = "0.1.0"
 description = "MCP stdio server for the Windows WhatsApp Desktop app (WinUI 3 + WebView2) — read history and send messages from Antigravity / Claude Desktop."
-readme = "README_WINDOWS.md"
+readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "MIT" }
 authors = [
-    { name = "WhatsApp MCP Windows contributors" },
+    { name = "Cristina Carol Souza", email = "crist@local" },
 ]
 keywords = ["mcp", "model-context-protocol", "whatsapp", "windows", "webview2", "antigravity"]
 classifiers = [
