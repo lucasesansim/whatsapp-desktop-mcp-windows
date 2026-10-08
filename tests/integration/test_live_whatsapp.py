@@ -12,7 +12,7 @@ from whatsapp_desktop_mcp.tools.read_chat import read_chat
 from whatsapp_desktop_mcp.tools.search_contacts import search_contacts
 
 # Skip unless RUN_LIVE=1 or running manually
-RUN_LIVE = os.environ.get("RUN_LIVE", "1") == "1"
+RUN_LIVE = os.environ.get("RUN_LIVE", "0") == "1"
 
 
 @pytest.mark.skipif(not RUN_LIVE, reason="Live integration test requires running WhatsApp Desktop")

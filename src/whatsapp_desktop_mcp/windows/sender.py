@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import base64
 import json
 import logging
 import mimetypes
@@ -13,26 +12,18 @@ from whatsapp_desktop_mcp.exceptions import ChatHeaderMismatch
 from whatsapp_desktop_mcp.interfaces.transport import WhatsAppTransport
 from whatsapp_desktop_mcp.models.chat import Chat
 from whatsapp_desktop_mcp.time import now_unix
+from whatsapp_desktop_mcp.windows import scripts
 from whatsapp_desktop_mcp.windows.cdp_client import CDPClient
+from whatsapp_desktop_mcp.windows.verification import PendingSend, validate_jid
 
 logger = logging.getLogger(__name__)
-
-# Bidi control characters to strip
-_BIDI_CHARS = ["\u200e", "\u2068", "\u2069"]
-
-
-def _strip_bidi(text: str) -> str:
-    res = text
-    for ch in _BIDI_CHARS:
-        res = res.replace(ch, "")
-    return res.strip()
-
 
 class WindowsCDPTransport(WhatsAppTransport):
     """Transport driving the Windows WhatsApp Desktop WebView2 via CDP."""
 
     def __init__(self, cdp_client: CDPClient) -> None:
         self.cdp = cdp_client
+        self._pending: PendingSend | None = None
 
     async def _ensure_connected(self) -> None:
         await self.cdp.connect()
@@ -40,19 +31,19 @@ class WindowsCDPTransport(WhatsAppTransport):
     async def open_chat(self, chat: Chat) -> bool:
         """Ensure the target conversation is actively open and focused in the WhatsApp UI."""
         await self._ensure_connected()
-        jid_raw = chat.jid.raw
+        jid_raw = validate_jid(chat.jid.raw)
         js_open = f"""
         (async () => {{
             try {{
                 const chatCol = window.require('WAWebCollections').Chat;
                 const cmd = window.require('WAWebCmd').Cmd;
-                let model = chatCol.get("{jid_raw}");
+                let model = chatCol.get({json.dumps(jid_raw)});
                 if (!model && chatCol.find) {{
-                    try {{ model = await chatCol.find("{jid_raw}"); }} catch(e) {{}}
+                    try {{ model = await chatCol.find({json.dumps(jid_raw)}); }} catch(e) {{}}
                 }}
                 if (!model) {{
                     const models = chatCol.getModelsArray ? chatCol.getModelsArray() : (chatCol._models || chatCol.models || []);
-                    model = models.find(m => String(m.id || "") === "{jid_raw}");
+                    model = models.find(m => String(m.id || "") === {json.dumps(jid_raw)});
                 }}
                 if (!model) return false;
                 cmd.openChatBottom({{ chat: model }});
@@ -68,112 +59,53 @@ class WindowsCDPTransport(WhatsAppTransport):
         return bool(opened)
 
     async def assert_recipient(self, chat: Chat) -> None:
-        """Verify that the active conversation in WhatsApp matches chat, auto-opening if needed."""
+        """Accept only the exact active identifier, never a name or substring."""
         await self._ensure_connected()
-        jid_raw = chat.jid.raw
+        expected = validate_jid(chat.jid.raw)
+        info = await self.cdp.evaluate(scripts.active_recipient()) or {}
+        if info.get("activeJid") != expected:
+            if await self.open_chat(chat):
+                info = await self.cdp.evaluate(scripts.active_recipient()) or {}
+        if info.get("activeJid") != expected:
+            raise ChatHeaderMismatch("The exact recipient could not be verified; send blocked.")
 
-        js_check = f"""
-        (() => {{
-            const chatCol = window.require ? window.require('WAWebCollections').Chat : null;
-            const activeChat = chatCol && chatCol.getActive ? chatCol.getActive() : null;
-            const activeJid = activeChat ? String(activeChat.id || '') : null;
+    async def _snapshot(self, recipient: str, since: int) -> list[dict]:
+        result = await self.cdp.evaluate(scripts.outgoing_snapshot(recipient, since))
+        if not isinstance(result, dict) or result.get("overflow") is not False:
+            raise RuntimeError("Cannot establish a complete outgoing-message snapshot.")
+        rows = result.get("rows")
+        if not isinstance(rows, list) or any(not isinstance(row, dict) for row in rows):
+            raise RuntimeError("Unexpected outgoing-message snapshot.")
+        return rows
 
-            const header = document.querySelector("#main header");
-            const titleEl = header ? header.querySelector("span[title], div[title]") : null;
-            const headerTitle = titleEl ? titleEl.getAttribute("title") : (header ? header.innerText.split('\\n')[0] : null);
-
-            return {{
-                activeJid: activeJid,
-                headerTitle: headerTitle,
-                isMatchJid: activeJid === "{jid_raw}"
-            }};
-        }})()
-        """
-        info = await self.cdp.evaluate(js_check) or {}
-        is_match = info.get("isMatchJid")
-
-        if not is_match:
-            # Try to auto-open the chat for a fluid workflow
-            opened = await self.open_chat(chat)
-            if opened:
-                info = await self.cdp.evaluate(js_check) or {}
-                is_match = info.get("isMatchJid")
-
-        active_title = info.get("headerTitle")
-        if not is_match and not active_title:
-            raise ChatHeaderMismatch(
-                f"No active chat conversation open in WhatsApp UI. Expected: '{chat.display_name}'"
-            )
-
-        clean_expected = _strip_bidi(chat.display_name).casefold()
-        clean_active = _strip_bidi(active_title or "").casefold()
-
-        if not is_match and (clean_expected not in clean_active and clean_active not in clean_expected):
-            raise ChatHeaderMismatch(
-                f"Active chat header mismatch! Expected '{chat.display_name}', but active is '{active_title}'."
-            )
+    async def _begin_send(
+        self, chat: Chat, body: str, *, filename: str | None = None, size: int | None = None
+    ) -> int:
+        self._pending = None
+        recipient = validate_jid(chat.jid.raw)
+        started = now_unix()
+        rows = await self._snapshot(recipient, started - 5)
+        self._pending = PendingSend(
+            recipient=recipient, body=body, started=started,
+            previous_ids={row["id"] for row in rows if isinstance(row.get("id"), str)},
+            filename=filename, size=size,
+        )
+        return started
 
     async def send_text(self, chat: Chat, body: str) -> tuple[bool, int]:
-        """Send message text to the verified chat.
-
-        Returns (is_experimental, send_started_unix_ts).
-        """
+        """Refuse draft contamination and recheck identity atomically with the click."""
+        if not isinstance(body, str) or not body.strip() or "\x00" in body:
+            raise ValueError("Message must contain non-empty text without NUL characters.")
         await self._ensure_connected()
-        start_ts = now_unix()
-        is_experimental = chat.kind == "group"
-
-        # Step 1: Assert recipient
         await self.assert_recipient(chat)
-
-        # Step 2: Focus the compose box and type text
-        js_type = f"""
-        (() => {{
-            const input = document.querySelector("#main footer div[contenteditable='true']");
-            if (!input) return false;
-            input.focus();
-            document.execCommand('insertText', false, {json.dumps(body)});
-            return true;
-        }})()
-        """
-
-        inserted = await self.cdp.evaluate(js_type)
-        if not inserted:
-            raise RuntimeError("Could not locate or focus the WhatsApp compose input field.")
-
-        await asyncio.sleep(0.3)
-
-        # Step 3: Click send button or dispatch Enter
-        js_click_send = """
-        (() => {
-            const sendBtn = document.querySelector("#main footer span[data-icon='send']") ||
-                            document.querySelector("#main footer button[aria-label='Send']") ||
-                            document.querySelector("#main footer button[aria-label='Enviar']");
-            if (sendBtn) {
-                const btn = sendBtn.closest("button") || sendBtn;
-                btn.click();
-                return true;
-            }
-            return false;
-        })()
-        """
-        clicked = await self.cdp.evaluate(js_click_send)
-        if not clicked:
-            # Fallback to Enter key via CDP Input domain
-            await self.cdp.send(
-                "Input.dispatchKeyEvent",
-                {
-                    "type": "keyDown",
-                    "windowsVirtualKeyCode": 13,
-                    "nativeVirtualKeyCode": 13,
-                    "text": "\r",
-                },
+        started = await self._begin_send(chat, body)
+        if await self.cdp.evaluate(scripts.compose_text(chat.jid.raw, body)) is not True:
+            raise RuntimeError("Composer is unavailable, changed, or already contains a draft.")
+        if await self.cdp.evaluate(scripts.click_send(chat.jid.raw, body)) is not True:
+            raise ChatHeaderMismatch(
+                "Recipient, composer, or send button changed; send blocked. Inspect the draft."
             )
-            await self.cdp.send(
-                "Input.dispatchKeyEvent",
-                {"type": "keyUp", "windowsVirtualKeyCode": 13, "nativeVirtualKeyCode": 13},
-            )
-
-        return is_experimental, start_ts
+        return chat.kind == "group", started
 
     async def send_file(
         self,
@@ -186,7 +118,6 @@ class WindowsCDPTransport(WhatsAppTransport):
         Returns (is_experimental, send_started_unix_ts).
         """
         await self._ensure_connected()
-        start_ts = now_unix()
         is_experimental = chat.kind == "group"
 
         resolved_path = os.path.abspath(file_path)
@@ -202,13 +133,14 @@ class WindowsCDPTransport(WhatsAppTransport):
         if not mime_type:
             mime_type = "application/octet-stream"
 
-        with open(resolved_path, "rb") as f:
-            file_bytes = f.read()
-
-        b64_content = base64.b64encode(file_bytes).decode("ascii")
-
         # Step 1: Assert recipient (auto-opens conversation if needed)
         await self.assert_recipient(chat)
+        draft_clear = await self.cdp.evaluate(scripts.compose_text(chat.jid.raw, ""))
+        if draft_clear is not True:
+            raise RuntimeError("An existing draft or preview blocks file sending.")
+        start_ts = await self._begin_send(
+            chat, caption, filename=file_name, size=file_size
+        )
 
         # Step 2: Open attachment menu ("Anexar" button)
         js_open_attach = """
@@ -307,34 +239,13 @@ class WindowsCDPTransport(WhatsAppTransport):
             await self.cdp.evaluate(js_caption)
             await asyncio.sleep(0.3)
 
-        # Step 8: Click send button or dispatch Enter
-        js_click_send = """
-        (() => {
-            const sendBtn = document.querySelector(
-                '[data-icon="wds-ic-send-filled"], [aria-label*="Enviar 1 item selecionado"], [data-icon="send"]'
-            );
-            if (sendBtn) {
-                (sendBtn.closest('button') || sendBtn.closest('[role="button"]') || sendBtn).click();
-                return true;
-            }
-            return false;
-        })()
-        """
-        clicked = await self.cdp.evaluate(js_click_send)
-        if not clicked:
-            await self.cdp.send(
-                "Input.dispatchKeyEvent",
-                {
-                    "type": "keyDown",
-                    "windowsVirtualKeyCode": 13,
-                    "nativeVirtualKeyCode": 13,
-                    "text": "\\r",
-                },
+        # Recheck recipient and exact caption in the same task as the send click.
+        if await self.cdp.evaluate(
+            scripts.click_send(
+                chat.jid.raw, caption, attachment=True, filename=file_name, size=file_size
             )
-            await self.cdp.send(
-                "Input.dispatchKeyEvent",
-                {"type": "keyUp", "windowsVirtualKeyCode": 13, "nativeVirtualKeyCode": 13},
-            )
+        ) is not True:
+            raise ChatHeaderMismatch("Attachment recipient, selected file, or caption changed; send blocked.")
 
         # Step 9: Wait for preview stage to close
         for _ in range(15):
@@ -352,52 +263,23 @@ class WindowsCDPTransport(WhatsAppTransport):
         start_ts: int,
         timeout_seconds: float = 10.0,
     ) -> str | None:
-        """Poll model-storage for the recorded outgoing message."""
-        deadline = asyncio.get_event_loop().time() + timeout_seconds
-        jid_raw = chat.jid.raw
-
-        js_poll = f"""
-        (async () => {{
-            return new Promise((resolve) => {{
-                const req = window.indexedDB.open("model-storage");
-                req.onsuccess = (e) => {{
-                    const db = e.target.result;
-                    const tx = db.transaction("message", "readonly");
-                    const store = tx.objectStore("message");
-                    const cursorReq = store.openCursor(null, "prev"); // newest first
-                    const targetJid = "{jid_raw}";
-
-                    cursorReq.onsuccess = (ev) => {{
-                        const cur = ev.target.result;
-                        if (cur) {{
-                            const m = cur.value;
-                            const mId = String(m.id || "");
-                            if (mId.startsWith("true_") && (mId.includes(targetJid) || m.to === targetJid)) {{
-                                if ((m.t || 0) >= {start_ts - 5}) {{
-                                    db.close();
-                                    resolve(m.id);
-                                    return;
-                                }}
-                            }}
-                            cur.continue();
-                        }} else {{
-                            db.close();
-                            resolve(null);
-                        }}
-                    }};
-                    cursorReq.onerror = () => {{ db.close(); resolve(null); }};
-                }};
-                req.onerror = () => resolve(null);
-            }});
-        }})()
-        """
-        while asyncio.get_event_loop().time() < deadline:
-            try:
-                msg_id = await self.cdp.evaluate(js_poll)
-                if msg_id:
-                    return str(msg_id)
-            except Exception as exc:
-                logger.debug("Verify outgoing poll error: %s", exc)
-            await asyncio.sleep(0.5)
-
-        return None
+        """Observe a new, exact local record; this is not a delivery receipt."""
+        pending = self._pending
+        if pending is None or pending.recipient != chat.jid.raw or pending.started != start_ts:
+            raise RuntimeError("No matching send attempt is available for verification.")
+        if pending.filename is None and pending.body != body:
+            raise RuntimeError("Verification text differs from the send attempt.")
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + timeout_seconds
+        try:
+            while True:
+                rows = await self._snapshot(pending.recipient, pending.started)
+                matches = [message_id for row in rows if (message_id := pending.match(row))]
+                # More than one identical new record is ambiguous.
+                if len(set(matches)) == 1:
+                    return matches[0]
+                if len(set(matches)) > 1 or loop.time() >= deadline:
+                    return None
+                await asyncio.sleep(min(0.2, max(0, deadline - loop.time())))
+        finally:
+            self._pending = None

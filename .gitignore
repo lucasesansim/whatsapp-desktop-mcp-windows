@@ -6,6 +6,16 @@ __pycache__/
 .ruff_cache/
 *.log
 *.sqlite
+*.sqlite-*
+*.db
+*.db-*
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+audit.log*
+.mypy_cache/
 dist/
 build/
 *.egg-info/

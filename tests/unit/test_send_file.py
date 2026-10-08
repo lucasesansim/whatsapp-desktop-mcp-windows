@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from mcp.server.elicitation import AcceptedElicitation
 
 from whatsapp_desktop_mcp import server
 from whatsapp_desktop_mcp.models.chat import Chat
 from whatsapp_desktop_mcp.models.contact import Jid
+from whatsapp_desktop_mcp.models.send import ConfirmationSchema
 from whatsapp_desktop_mcp.tools import send_file
 
 
@@ -83,7 +86,7 @@ async def test_send_file_successful_flow(tmp_path, monkeypatch) -> None:
     result = await send_file.send_file(
         chat_id=99999,
         file_path=str(pdf_file),
-        caption="Segue o relatório em anexo",
+        caption="Segue o relatório em anexo", ctx=SimpleNamespace(elicit=AsyncMock(return_value=AcceptedElicitation(data=ConfirmationSchema(confirm=True)))),
     )
 
     assert result.status == "sent"

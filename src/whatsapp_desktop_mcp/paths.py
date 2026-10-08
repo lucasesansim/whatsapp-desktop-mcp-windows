@@ -11,7 +11,8 @@ PACKAGE_FAMILY_NAME = "5319275A.WhatsAppDesktop_cv1g1gvanyjgm"
 def get_mcp_data_dir() -> Path:
     """Return the local data directory for the MCP server on Windows."""
     local_app_data = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~\\AppData\\Local")
-    path = Path(local_app_data) / "whatsapp-desktop-mcp"
+    configured = os.environ.get("WHATSAPP_DESKTOP_MCP_DATA_DIR")
+    path = Path(configured) if configured else Path(local_app_data) / "whatsapp-desktop-mcp"
     path.mkdir(parents=True, exist_ok=True)
     return path
 

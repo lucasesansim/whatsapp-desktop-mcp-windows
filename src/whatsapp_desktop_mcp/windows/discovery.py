@@ -8,6 +8,7 @@ import os
 import urllib.request
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 from whatsapp_desktop_mcp.paths import get_whatsapp_package_data_dir
 
@@ -81,12 +82,31 @@ def get_whatsapp_page_target(port: int = DEFAULT_CDP_PORT) -> dict[str, Any] | N
         with urllib.request.urlopen(req, timeout=2.0) as resp:
             data = json.loads(resp.read().decode("utf-8"))
             for target in data:
-                t_type = target.get("type")
-                t_url = target.get("url", "")
-                if t_type == "page" and (
-                    "web.whatsapp.com" in t_url or "WhatsApp" in target.get("title", "")
-                ):
+                if isinstance(target, dict) and validate_debug_target(target, port):
                     return target
     except Exception as exc:
         logger.debug("Failed to get targets from %s: %s", url, exc)
     return None
+
+
+def validate_debug_target(target: dict[str, Any], port: int) -> bool:
+    """Accept only the exact WhatsApp origin and a same-port loopback debugger."""
+    try:
+        page = urlsplit(target.get("url", ""))
+        debugger = urlsplit(target.get("webSocketDebuggerUrl", ""))
+        return (
+            target.get("type") == "page"
+            and page.scheme == "https"
+            and page.hostname == "web.whatsapp.com"
+            and page.port in (None, 443)
+            and page.username is None and page.password is None
+            and debugger.scheme == "ws"
+            and debugger.hostname == "127.0.0.1"
+            and debugger.port == port
+            and debugger.username is None and debugger.password is None
+            and not debugger.query and not debugger.fragment
+            and debugger.path.startswith("/devtools/page/")
+            and len(debugger.path) > len("/devtools/page/")
+        )
+    except (AttributeError, TypeError, ValueError):
+        return False

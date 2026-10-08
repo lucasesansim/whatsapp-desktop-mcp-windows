@@ -13,6 +13,7 @@ from whatsapp_desktop_mcp.exceptions import CDPConnectionError, TargetNotFoundEr
 from whatsapp_desktop_mcp.windows.discovery import (
     DEFAULT_CDP_PORT,
     get_whatsapp_page_target,
+    validate_debug_target,
 )
 
 logger = logging.getLogger(__name__)
@@ -66,6 +67,8 @@ class CDPClient:
                     "Ensure WhatsApp Desktop is running with remote debugging enabled."
                 )
 
+            if not validate_debug_target(target, self.port):
+                raise CDPConnectionError("Untrusted debugger target; connection blocked.")
             ws_url = target.get("webSocketDebuggerUrl")
             if not ws_url:
                 raise CDPConnectionError(f"No webSocketDebuggerUrl on target: {target}")
@@ -73,12 +76,13 @@ class CDPClient:
             try:
                 self.ws = await websockets.connect(
                     ws_url,
+                    proxy=None,
                     max_size=50 * 1024 * 1024,  # 50MB max frame
                     ping_interval=20,
                     ping_timeout=20,
                 )
                 self._listener_task = asyncio.create_task(self._listen_loop())
-                logger.info("Connected to WhatsApp CDP at %s", ws_url)
+                logger.info("Connected to the local WhatsApp debugger.")
             except Exception as exc:
                 raise CDPConnectionError(
                     f"Failed to connect to CDP WebSocket {ws_url}: {exc}"

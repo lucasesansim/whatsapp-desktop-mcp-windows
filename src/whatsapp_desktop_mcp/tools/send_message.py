@@ -2,16 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
-import os
 import time
 from typing import Literal
 
-from mcp.server.elicitation import (
-    AcceptedElicitation,
-    CancelledElicitation,
-    DeclinedElicitation,
-)
 from mcp.server.fastmcp import Context
 from mcp.types import ToolAnnotations
 
@@ -24,13 +19,14 @@ from whatsapp_desktop_mcp.exceptions import (
     SendTimeout,
 )
 from whatsapp_desktop_mcp.models.contact import Jid
-from whatsapp_desktop_mcp.models.send import ConfirmationSchema, SendResult
+from whatsapp_desktop_mcp.models.send import SendResult
 from whatsapp_desktop_mcp.paths import get_audit_log_path
 from whatsapp_desktop_mcp.sender import cross_chat_quote, rate_limit
 from whatsapp_desktop_mcp.sender.audit import AuditEntry, append_audit_entry, hash_body
+from whatsapp_desktop_mcp.sender.confirmation import confirmed
 from whatsapp_desktop_mcp.sender.cross_chat_quote import OffendingSource
+from whatsapp_desktop_mcp.sender.guard import exclusive_send
 from whatsapp_desktop_mcp.server import mcp
-from whatsapp_desktop_mcp.tools._decorators import timeout
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +80,6 @@ def _build_elicitation_message(
     ),
     meta={"anthropic/maxResultSizeChars": 60_000},
 )
-@timeout(seconds=15)
 async def send_message(
     chat_id: int,
     body: str,
@@ -129,63 +124,36 @@ async def send_message(
         rate_min_rem, rate_day_rem = await rate_limit.check_and_reserve()
 
         # STEP 5: MCP elicitation
-        if os.environ.get("WHATSAPP_DESKTOP_MCP_SKIP_CONFIRM") == "1":
-            confirm_skipped = True
-        else:
-            prompt = _build_elicitation_message(
-                chat_name=chat_name,
-                chat_id=chat_id,
-                recipient_jid=chat.jid,
-                chars_in_body=len(body),
-                body_verbatim=body,
-                warnings=warnings,
-                rate_min_rem=rate_min_rem,
-                rate_day_rem=rate_day_rem,
+        prompt = _build_elicitation_message(
+            chat_name=chat_name, chat_id=chat_id, recipient_jid=chat.jid,
+            chars_in_body=len(body), body_verbatim=body, warnings=warnings,
+            rate_min_rem=rate_min_rem, rate_day_rem=rate_day_rem,
+        )
+        if not await confirmed(ctx, prompt):
+            outcome = "cancelled"
+            return SendResult(
+                status="cancelled", chat_id=chat_id, chat_name=chat_name,
+                audit_log_path=audit_log_path,
+                elapsed_ms=int((time.time() - send_started_unix) * 1000),
             )
-            result = await ctx.elicit(message=prompt, schema=ConfirmationSchema)
-            if isinstance(result, (DeclinedElicitation, CancelledElicitation)):
-                outcome = "cancelled"
-                return SendResult(
-                    status="cancelled",
-                    message_id=None,
-                    chat_id=chat_id,
-                    chat_name=chat_name,
-                    verification_note=None,
-                    rate_limit_remaining_per_min=rate_min_rem,
-                    rate_limit_remaining_per_day=rate_day_rem,
-                    audit_log_path=audit_log_path,
-                    elapsed_ms=int((time.time() - send_started_unix) * 1000),
-                    is_experimental=False,
-                    confirm_skipped=False,
-                )
-            assert isinstance(result, AcceptedElicitation)
-            if not result.data.confirm:
-                outcome = "cancelled"
-                return SendResult(
-                    status="cancelled",
-                    message_id=None,
-                    chat_id=chat_id,
-                    chat_name=chat_name,
-                    verification_note=None,
-                    rate_limit_remaining_per_min=rate_min_rem,
-                    rate_limit_remaining_per_day=rate_day_rem,
-                    audit_log_path=audit_log_path,
-                    elapsed_ms=int((time.time() - send_started_unix) * 1000),
-                    is_experimental=False,
-                    confirm_skipped=False,
-                )
 
-        # STEP 6: Drive send via CDP transport
-        is_experimental, start_ts = await server.transport.send_text(chat, body)
+        async with exclusive_send():
+            rate_min_rem, rate_day_rem = await rate_limit.check_and_reserve()
+            # Charge the attempt before any UI action. Unknown outcomes must not bypass limits.
+            await rate_limit.record_outcome(chat_id, sha, "sent_unverified")
+            try:
+                async with asyncio.timeout(30):
+                    is_experimental, start_ts = await server.transport.send_text(chat, body)
+                    message_id = await server.transport.verify_outgoing(chat, body, start_ts)
+            except Exception as exc:
+                raise RuntimeError("Send outcome may be unknown. Inspect WhatsApp; do not retry automatically.") from exc
 
-        # STEP 7: Post-hoc DB poll
-        message_id = await server.transport.verify_outgoing(chat, body, start_ts)
         if message_id is not None:
             outcome = "sent"
         else:
             outcome = "sent_unverified"
             verification_note = (
-                "Send observably succeeded in the WhatsApp UI but the corresponding "
+                "Send command completed, but the corresponding "
                 "message was not visible in IndexedDB within the verification window. "
                 "DO NOT retry immediately to prevent duplicates."
             )
@@ -243,6 +211,5 @@ async def send_message(
                     error_message=err_msg,
                 )
             )
-            await rate_limit.record_outcome(chat_id, sha, outcome)
         except Exception:
             logger.exception("audit/record-outcome failed in send_message finally")

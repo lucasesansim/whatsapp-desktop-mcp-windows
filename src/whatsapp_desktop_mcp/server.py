@@ -22,7 +22,7 @@ from whatsapp_desktop_mcp.windows.sender import WindowsCDPTransport  # noqa: E40
 mcp: FastMCP = FastMCP("whatsapp-desktop-mcp")
 
 # Module-level read-only mode flag set by CLI before tool imports
-read_only_mode: bool = False
+read_only_mode: bool = True
 
 # Shared Windows integration singletons
 

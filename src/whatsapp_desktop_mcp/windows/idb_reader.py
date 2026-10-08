@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from typing import Any
 
@@ -180,7 +181,7 @@ class IndexedDBReader(WhatsAppReader):
                     const db = e.target.result;
                     const tx = db.transaction("chat", "readonly");
                     const store = tx.objectStore("chat");
-                    const getReq = store.get("{jid_raw}");
+                    const getReq = store.get({json.dumps(jid_raw)});
                     getReq.onsuccess = () => {{
                         const val = getReq.result;
                         db.close();
@@ -263,7 +264,7 @@ class IndexedDBReader(WhatsAppReader):
                     const store = tx.objectStore("message");
                     const cursorReq = store.openCursor();
                     const messages = [];
-                    const targetJid = "{jid_raw}";
+                    const targetJid = {json.dumps(jid_raw)};
                     const liveMap = new Map();
                     try {{
                         const col = window.require && window.require('WAWebCollections');
@@ -392,7 +393,7 @@ class IndexedDBReader(WhatsAppReader):
                     const store = tx.objectStore("message");
                     const cursorReq = store.openCursor();
                     const messages = [];
-                    const filterJid = "{filter_jid}";
+                    const filterJid = {json.dumps(filter_jid)};
 
                     cursorReq.onsuccess = (ev) => {{
                         const cur = ev.target.result;
@@ -458,7 +459,7 @@ class IndexedDBReader(WhatsAppReader):
         limit: int = 100,
     ) -> list[Message]:
         await self._ensure_connected()
-        q_clean = query.replace('"', '\\"').lower()
+        q_clean = query.lower()
         filter_jid = ""
         if chat_id:
             chat = await self.find_chat_by_id(chat_id)
@@ -476,8 +477,8 @@ class IndexedDBReader(WhatsAppReader):
                     const cursorReq = store.openCursor();
                     const matches = [];
                     const seen = new Set();
-                    const q = "{q_clean}";
-                    const filterJid = "{filter_jid}";
+                    const q = {json.dumps(q_clean)};
+                    const filterJid = {json.dumps(filter_jid)};
 
                     try {{
                         const col = window.require && window.require('WAWebCollections');
@@ -569,7 +570,7 @@ class IndexedDBReader(WhatsAppReader):
 
     async def search_contacts(self, query: str, limit: int = 50) -> list[Contact]:
         await self._ensure_connected()
-        q_clean = query.replace('"', '\\"').lower()
+        q_clean = query.lower()
         js_code = f"""
         (async () => {{
             return new Promise((resolve, reject) => {{
@@ -580,7 +581,7 @@ class IndexedDBReader(WhatsAppReader):
                     const store = tx.objectStore("contact");
                     const cursorReq = store.openCursor();
                     const contacts = [];
-                    const q = "{q_clean}";
+                    const q = {json.dumps(q_clean)};
 
                     cursorReq.onsuccess = (ev) => {{
                         const cur = ev.target.result;
@@ -636,7 +637,7 @@ class IndexedDBReader(WhatsAppReader):
             try {{
                 const col = window.require && window.require('WAWebCollections');
                 const gCol = col && col.WAWebGroupMetadataCollection;
-                const g = gCol ? gCol.get('{jid_raw}') : null;
+                const g = gCol ? gCol.get({json.dumps(jid_raw)}) : null;
                 if (g) {{
                     const parts = g.participants ? (g.participants._models || g.participants.models || g.participants) : [];
                     return {{
@@ -659,7 +660,7 @@ class IndexedDBReader(WhatsAppReader):
                     const db = e.target.result;
                     const tx = db.transaction("group-metadata", "readonly");
                     const store = tx.objectStore("group-metadata");
-                    const getReq = store.get("{jid_raw}");
+                    const getReq = store.get({json.dumps(jid_raw)});
                     getReq.onsuccess = () => {{
                         const val = getReq.result;
                         db.close();
@@ -721,7 +722,7 @@ class IndexedDBReader(WhatsAppReader):
                     const db = e.target.result;
                     const tx = db.transaction("message", "readonly");
                     const store = tx.objectStore("message");
-                    const targetReq = store.get("{message_id}");
+                    const targetReq = store.get({json.dumps(message_id)});
 
                     targetReq.onsuccess = () => {{
                         const target = targetReq.result;
@@ -754,7 +755,7 @@ class IndexedDBReader(WhatsAppReader):
                                 cur.continue();
                             }} else {{
                                 allChatMsgs.sort((a, b) => a.t - b.t);
-                                const idx = allChatMsgs.findIndex(x => x.id === "{message_id}");
+                                const idx = allChatMsgs.findIndex(x => x.id === {json.dumps(message_id)});
                                 if (idx === -1) {{
                                     db.close();
                                     resolve({{ target, context: [] }});

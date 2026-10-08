@@ -2,16 +2,12 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import time
 from typing import Literal
 
-from mcp.server.elicitation import (
-    AcceptedElicitation,
-    CancelledElicitation,
-    DeclinedElicitation,
-)
 from mcp.server.fastmcp import Context
 from mcp.types import ToolAnnotations
 
@@ -24,7 +20,7 @@ from whatsapp_desktop_mcp.exceptions import (
     SendTimeout,
 )
 from whatsapp_desktop_mcp.models.contact import Jid
-from whatsapp_desktop_mcp.models.send import ConfirmationSchema, SendFileResult
+from whatsapp_desktop_mcp.models.send import SendFileResult
 from whatsapp_desktop_mcp.paths import get_audit_log_path
 from whatsapp_desktop_mcp.sender import rate_limit
 from whatsapp_desktop_mcp.sender.audit import (
@@ -33,8 +29,9 @@ from whatsapp_desktop_mcp.sender.audit import (
     hash_body,
     hash_file,
 )
+from whatsapp_desktop_mcp.sender.confirmation import confirmed
+from whatsapp_desktop_mcp.sender.guard import exclusive_send
 from whatsapp_desktop_mcp.server import mcp
-from whatsapp_desktop_mcp.tools._decorators import timeout
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +76,6 @@ def _build_file_elicitation_message(
     ),
     meta={"anthropic/maxResultSizeChars": 60_000},
 )
-@timeout(seconds=25)
 async def send_file(
     chat_id: int,
     file_path: str,
@@ -136,86 +132,33 @@ async def send_file(
         rate_min_rem, rate_day_rem = await rate_limit.check_and_reserve()
 
         # STEP 5: MCP elicitation
-        if os.environ.get("WHATSAPP_DESKTOP_MCP_SKIP_CONFIRM") == "1":
-            confirm_skipped = True
-        elif ctx is not None:
-            prompt = _build_file_elicitation_message(
-                chat_name=chat_name,
-                chat_id=chat_id,
-                recipient_jid=chat.jid,
-                file_name=file_name,
-                file_size_bytes=file_size,
-                caption=caption,
-                rate_min_rem=rate_min_rem,
-                rate_day_rem=rate_day_rem,
-            )
-            try:
-                elicit_result = await ctx.elicit(prompt, schema=ConfirmationSchema)
-            except Exception as exc:
-                await rate_limit.rollback()
-                outcome = "error"
-                err_msg = f"Elicitation failed: {exc}"
-                raise RuntimeError(err_msg) from exc
-
-            if isinstance(elicit_result, (DeclinedElicitation, CancelledElicitation)):
-                await rate_limit.rollback()
-                outcome = "cancelled"
-                return SendFileResult(
-                    status="cancelled",
-                    chat_id=chat_id,
-                    chat_name=chat_name,
-                    file_name=file_name,
-                    file_size_bytes=file_size,
-                    caption=caption or None,
-                    rate_limit_remaining_per_min=rate_min_rem,
-                    rate_limit_remaining_per_day=rate_day_rem,
-                    audit_log_path=audit_log_path,
-                    elapsed_ms=int((time.time() - send_started_unix) * 1000),
-                )
-
-            if isinstance(elicit_result, AcceptedElicitation):
-                action = elicit_result.action
-                user_confirmed = getattr(action, "confirm", None) if action else None
-                if not user_confirmed:
-                    await rate_limit.rollback()
-                    outcome = "cancelled"
-                    return SendFileResult(
-                        status="cancelled",
-                        chat_id=chat_id,
-                        chat_name=chat_name,
-                        file_name=file_name,
-                        file_size_bytes=file_size,
-                        caption=caption or None,
-                        rate_limit_remaining_per_min=rate_min_rem,
-                        rate_limit_remaining_per_day=rate_day_rem,
-                        audit_log_path=audit_log_path,
-                        elapsed_ms=int((time.time() - send_started_unix) * 1000),
-                    )
-
-        # STEP 6: Execute send_file via transport
-        try:
-            is_experimental, send_started_unix_ts = await server.transport.send_file(
-                chat,
-                resolved_path,
-                caption,
-            )
-        except ChatHeaderMismatch:
-            await rate_limit.rollback()
-            outcome = "error"
-            raise
-        except Exception as exc:
-            await rate_limit.rollback()
-            outcome = "error"
-            err_msg = str(exc)
-            raise RuntimeError(f"Transport send_file failed: {exc}") from exc
-
-        # STEP 7: Verify outgoing
-        message_id = await server.transport.verify_outgoing(
-            chat,
-            caption or file_name,
-            send_started_unix_ts,
-            timeout_seconds=12.0,
+        prompt = _build_file_elicitation_message(
+            chat_name=chat_name, chat_id=chat_id, recipient_jid=chat.jid,
+            file_name=file_name, file_size_bytes=file_size, caption=caption,
+            rate_min_rem=rate_min_rem, rate_day_rem=rate_day_rem,
         )
+        if not await confirmed(ctx, prompt):
+            outcome = "cancelled"
+            return SendFileResult(
+                status="cancelled", chat_id=chat_id, chat_name=chat_name,
+                file_name=file_name, file_size_bytes=file_size, caption=caption or None,
+                audit_log_path=audit_log_path,
+                elapsed_ms=int((time.time() - send_started_unix) * 1000),
+            )
+
+        async with exclusive_send():
+            rate_min_rem, rate_day_rem = await rate_limit.check_and_reserve()
+            await rate_limit.record_outcome(chat_id, caption_sha, "sent_unverified")
+            try:
+                async with asyncio.timeout(45):
+                    is_experimental, send_started_unix_ts = await server.transport.send_file(
+                        chat, resolved_path, caption,
+                    )
+                    message_id = await server.transport.verify_outgoing(
+                        chat, caption, send_started_unix_ts, timeout_seconds=12.0,
+                    )
+            except Exception as exc:
+                raise RuntimeError("Attachment outcome may be unknown. Inspect WhatsApp; do not retry automatically.") from exc
 
         if message_id:
             outcome = "sent"
@@ -223,7 +166,7 @@ async def send_file(
             outcome = "sent_unverified"
             verification_note = (
                 "File send command completed, but outgoing message was not confirmed "
-                "in model-storage within 12 seconds. It may still deliver."
+                "in model-storage within 12 seconds. Inspect WhatsApp; do not retry automatically."
             )
 
         return SendFileResult(
@@ -251,7 +194,7 @@ async def send_file(
         raise
     except Exception as exc:
         outcome = "error"
-        err_msg = str(exc)
+        err_msg = type(exc).__name__
         raise
     finally:
         elapsed = int((time.time() - send_started_unix) * 1000)
@@ -273,4 +216,4 @@ async def send_file(
         try:
             await append_audit_entry(entry)
         except Exception as audit_exc:
-            logger.error("Failed to append audit entry for send_file: %s", audit_exc)
+            logger.error("Failed to append audit entry for send_file: %s", type(audit_exc).__name__)
