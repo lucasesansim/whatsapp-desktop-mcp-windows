@@ -19,3 +19,6 @@ audit.log*
 dist/
 build/
 *.egg-info/
+
+# Private local benchmark output and compiled helper
+/work/

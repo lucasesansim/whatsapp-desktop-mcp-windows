@@ -6,7 +6,7 @@ Permite consultar la caché local de WhatsApp Desktop para Windows mediante WebV
 
 ## Estado real
 
-Experimental. Las correcciones se verificaron con datos sintéticos, sin conectarse a una cuenta ni enviar mensajes reales. No se midió la latencia ni se validó compatibilidad con la versión instalada de WhatsApp.
+Experimental. Las correcciones de envío se verificaron con datos sintéticos; no se enviaron mensajes reales. Se completó una prueba de lectura limitada con WhatsApp Desktop 2.2639.100.0 x64. Esta comprobación no garantiza compatibilidad con otras versiones ni rendimiento estable.
 
 Usar la app oficial no garantiza que la automatización esté autorizada por WhatsApp ni que la cuenta no pueda sufrir restricciones. Tampoco garantiza acceso al historial completo: los resultados dependen de lo que la app tenga sincronizado.
 
@@ -36,6 +36,21 @@ python -m venv .venv
 
 Las pruebas sintéticas aíslan los registros y bloquean conexiones a WhatsApp. Las de JavaScript requieren `node` en PATH o `TEST_NODE` apuntando al ejecutable.
 
+
+## Prueba de lectura en Windows x64
+
+Requiere Windows x64, PowerShell 7, el compilador .NET Framework de Windows y las dependencias Python instaladas. Con WhatsApp abierto, ejecutar:
+
+    .\scripts\Test-ReadOnly.ps1
+
+El script pide escribir PROBAR, reinicia WhatsApp, obtiene una muestra de hasta 5 chats y 5 mensajes y muestra solo cantidades y tiempos. No imprime ni guarda cuerpos, nombres o números. Los resultados locales y el ayudante compilado quedan en work/read-only-test/, excluido de Git.
+
+Usa IPackageDebugSettings y la activación de apps de Microsoft Store para aplicar opciones temporales únicamente a WhatsApp. No escribe en la rama de políticas, modifica permisos ni solicita administrador. Al terminar retira las opciones, reinicia WhatsApp normalmente y comprueba que el puerto esté cerrado. No cerrar la consola durante la prueba.
+
+El ayudante C# solo reanuda el hilo inicial que Windows suspende para ese inicio diagnóstico, tras comprobar que pertenece al ejecutable instalado de WhatsApp. No inyecta código. Este mecanismo sigue el [procedimiento de Microsoft para pasar un entorno a una app de Store](https://learn.microsoft.com/en-us/dotnet/framework/unmanaged-api/profiling/clr-profilers-and-windows-store-apps#startup-load).
+
+Para revisar requisitos y compilar sin reiniciar ni leer WhatsApp: Test-ReadOnly.ps1 -PreflightOnly. Si Windows rechaza la API, la prueba se detiene; no cambiar permisos ni ejecutar como administrador como solución automática.
+
 ## Uso como MCP
 
 El comando `whatsapp-desktop-mcp --read-only` inicia el servidor stdio; el cliente MCP debe ejecutarlo como subproceso. No requiere una clave de OpenAI.
@@ -55,7 +70,7 @@ Ejemplo para un cliente que use el formato `mcpServers` (las rutas dependen de l
 
 La configuración varía entre clientes. Este fork aún no incluye un plugin instalado de ChatGPT ni una skill compartible de ChatIÁ. No se ha probado su uso desde todas las superficies de ChatGPT.
 
-Antes de consultar datos reales se necesita una sesión de WhatsApp Desktop y una configuración de depuración revisada. Véase [SECURITY.md](SECURITY.md). Este fork **no habilita depuración, cambia el sistema ni vincula la cuenta automáticamente**.
+Antes de consultar datos reales se necesita una sesión de WhatsApp Desktop y una configuración de depuración revisada. Véase [SECURITY.md](SECURITY.md). El servidor MCP no habilita depuración ni vincula una cuenta automáticamente. El script de prueba anterior activa y retira una conexión temporal solo cuando se ejecuta expresamente.
 
 La opción `--no-read-only` habilita las herramientas de envío, pero cada operación sigue requiriendo confirmación. Los archivos y grupos siguen siendo experimentales y los selectores de archivos heredados dependen del idioma de la interfaz.
 

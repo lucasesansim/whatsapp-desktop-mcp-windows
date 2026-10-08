@@ -6,7 +6,7 @@ Este fork reduce fallos concretos de enrutamiento y verificación. No está cert
 
 CDP permite leer datos de la sesión y ejecutar acciones en la app. Restringir el cliente a loopback no protege contra otros procesos que ya se ejecutan en el mismo equipo. El puerto no sustituye autenticación.
 
-No exponer CDP a la red, no crear túneles públicos y no habilitar depuración mediante variables globales para todas las aplicaciones WebView2. Cualquier configuración futura debe limitarse al proceso elegido y desactivarse al terminar. Este fork no cambia la configuración del sistema.
+No exponer CDP a la red, no crear túneles públicos y no habilitar depuración mediante variables globales para todas las aplicaciones WebView2. Cualquier configuración futura debe limitarse al proceso elegido y desactivarse al terminar. El servidor no cambia la configuración. El script de prueba optativo aplica depuración temporal al paquete de WhatsApp y la retira en finally; esto afecta temporalmente a su ciclo de vida. Mantener la consola abierta hasta finalizar y comprobar el resultado de limpieza.
 
 ## Datos
 

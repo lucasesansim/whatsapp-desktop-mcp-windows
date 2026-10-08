@@ -98,8 +98,8 @@ async def doctor() -> dict[str, Any]:
                 state="warning" if running else "unavailable",
                 details=f"No CDP endpoint detected on port {DEFAULT_CDP_PORT}.",
                 remediation=(
-                    "Set user environment variable WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS="
-                    f"--remote-debugging-port={DEFAULT_CDP_PORT} and restart WhatsApp Desktop."
+                    "Review README's app-scoped debugging procedure. "
+                    "Do not set global WebView2 variables or change Windows permissions."
                 ),
             )
         )

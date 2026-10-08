@@ -22,9 +22,9 @@ Las pruebas de los guardas JavaScript ejecutan los programas generados en Node c
 
 ## Pendiente antes de usarlo con una cuenta
 
-- Medir latencia y consumo de lectura en una caché real.
+- Ampliar las mediciones de latencia y consumo: se completó una muestra de lectura real con la versión 2.2639.100.0 x64.
 - Validar estructuras de mensajes, nombres de módulos internos y selectores con la versión e idioma elegidos.
-- Revisar el acceso local al puerto CDP y el ciclo de vida de la depuración.
+- El script optativo usa depuración por paquete y comprueba su retirada; revisar su ciclo de vida bajo fallos y cierre abrupto de la consola.
 - Probar los envíos en un entorno elegido por el propietario, sin reintentos automáticos.
 - Completar la integración de ChatIÁ como skill/plugin, si esta arquitectura resulta viable.
 
